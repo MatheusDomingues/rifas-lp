@@ -1,7 +1,9 @@
-import { cn } from '@/lib/utils'
+import './globals.css'
+
 import type { Metadata } from 'next'
 import { Inter as FontSans } from 'next/font/google'
-import './globals.css'
+
+import { cn } from '@/lib/utils'
 
 const fontSans = FontSans({
   subsets: ['latin'],
@@ -9,8 +11,9 @@ const fontSans = FontSans({
 })
 
 export const metadata: Metadata = {
-  title: 'Rifa',
-  description: 'Site de venda de rifa'
+  title: 'Zoop | Compra e Concorra',
+  description:
+    'Landing Page da Zoop para concorrer a prêmios sobre compras realizadas de seus produtos'
 }
 
 export default function RootLayout({

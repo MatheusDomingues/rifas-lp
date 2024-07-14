@@ -14,12 +14,12 @@ export default function Page() {
           <div className='flex flex-col gap-6 items-center justify-start pb-10 pt-20'>
             <div
               id='inicio'
-              className='flex p-4 max-h-[70%] justify-center w-full'
+              className='flex p-4 max-h-[80vh] justify-center w-full'
             >
               <img
                 alt='Compre e concorra'
                 src='/images/banner.png'
-                className='w-full max-w-full max-h-full object-contain'
+                className='max-w-full max-h-full object-contain'
               />
             </div>
 
@@ -27,7 +27,7 @@ export default function Page() {
               <img
                 alt='Compre e concorra'
                 src='/images/steps.png'
-                className='w-full max-w-full max-h-full object-contain'
+                className='max-w-full max-h-full object-contain'
               />
             </div>
 

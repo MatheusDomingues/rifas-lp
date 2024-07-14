@@ -55,8 +55,8 @@ ENV AWS_S3_BUCKET_NAME=$AWS_S3_BUCKET_NAME
 ENV EMAIL_BACKUP=$EMAIL_BACKUP
 
 RUN \
-  if [ -f yarn.lock ]; then yarn run build; \
-  elif [ -f package-lock.json ]; then npm run build; \
+  if [ -f yarn.lock ]; then npx prisma generate && yarn run build; \
+  elif [ -f package-lock.json ]; then npx prisma generate && npm run build; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm prisma generate && pnpm run build; \
   else echo "Lockfile not found." && exit 1; \
   fi

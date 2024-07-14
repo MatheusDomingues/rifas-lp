@@ -1,80 +1,133 @@
 'use server'
-import { createClient } from 'redis'
+
+import { createTransport } from 'nodemailer'
+
+import { CandidateType } from '@/types/candidate.type'
+
+import prisma from './prisma'
+import { uploadFile } from './s3-client'
+import { slugify } from './utils'
 
 const MIN_NUMBER = Number(process.env.MIN_NUMBER)
 const MAX_NUMBER = Number(process.env.MAX_NUMBER)
+const EMAIL_BACKUP = String(process.env.EMAIL_BACKUP)
 
-export async function sendDrawnNumber(e: React.FormEvent<HTMLFormElement>) {
-  e.preventDefault()
+export async function sendDrawnNumber(formData: FormData) {
   try {
-    const redis = await createClient({ url: process.env.REDIS_URL })
-      .on('error', err => {
-        console.error('Redis Connection Error:', err)
-        throw new Error('Não foi possível conectar com a base de dados.')
+    const content = JSON.parse(formData.get('content') as string) as Omit<
+      CandidateType,
+      'fotoUrl' | 'numeroSorteado'
+    >
+
+    const drawnNumbers = await prisma.candidato
+      .findMany({
+        orderBy: { numeroSorteado: 'asc' },
+        select: { numeroSorteado: true }
       })
-      .connect()
+      .then(candidates =>
+        candidates.map(candidate => Number(candidate.numeroSorteado))
+      )
 
-    const form = e.currentTarget
-    const formData = new FormData(form)
+    const number = await drawNumber(drawnNumbers)
+    const fotoUrl = await processImage(formData)
 
-    const email = formData.get('email') as string
-    const name = formData.get('name') as string
+    if (!fotoUrl) throw new Error('Falha ao processar a imagem.')
 
-    const number = await sortNumber(redis)
+    await createCandidate({
+      ...content,
+      fotoUrl,
+      numeroSorteado: String(number)
+    })
 
-    console.log({ email, name, number })
+    const transport = createTransport({
+      host: process.env.EMAIL_SERVER_HOST,
+      port: Number(process.env.EMAIL_SERVER_PORT ?? 587),
+      auth: {
+        user: process.env.EMAIL_SERVER_USER,
+        pass: process.env.EMAIL_SERVER_PASSWORD
+      }
+    })
+    const result = await transport.sendMail({
+      to: [content?.email, EMAIL_BACKUP],
+      from: process.env.EMAIL_FROM,
+      subject: `Olá, ${content.nome}. Você recebeu um número sorteado`,
+      html: html(content.nome, number),
+      text: text(content.nome)
+    })
+    const failed = result?.rejected?.concat(result?.pending).filter(Boolean)
+    if (failed?.length) {
+      throw new Error(
+        `Não foi possível enviar o(s) email(s) (${failed.join(', ')})`
+      )
+    }
 
-    // const transport = createTransport({
-    //   host: process.env.EMAIL_SERVER_HOST,
-    //   port: Number(process.env.EMAIL_SERVER_PORT ?? 587),
-    //   auth: {
-    //     user: process.env.EMAIL_SERVER_USER,
-    //     pass: process.env.EMAIL_SERVER_PASSWORD
-    //   }
-    // })
-    // const result = await transport.sendMail({
-    //   to: email,
-    //   from: process.env.EMAIL_FROM,
-    //   subject: `Olá, ${name}. Você recebeu um número sorteado`,
-    //   text: text({ name, number }),
-    //   html: html({ name, number })
-    // })
-    // const failed = result?.rejected?.concat(result?.pending).filter(Boolean)
-    // if (failed?.length) {
-    //   throw new Error(
-    //     `Não foi possível enviar o(s) email(s) (${failed.join(', ')})`
-    //   )
-    // }
+    return { message: 'Número sorteado enviado com sucesso!' }
   } catch (error) {
     throw error
   }
 }
 
-async function sortNumber(redis: any) {
-  const redisNumbers = await redis.get(process.env.RIFA_NAME + '-numbers-sent')
-  const numbersSent = JSON.parse(redisNumbers || '[]')
-
+async function drawNumber(drawnNumbers: number[]) {
   let number = null
 
-  if (numbersSent.length < MAX_NUMBER - MIN_NUMBER) {
+  if (drawnNumbers.length <= MAX_NUMBER - MIN_NUMBER) {
     do {
       number =
         Math.floor(Math.random() * (MAX_NUMBER - MIN_NUMBER + 1)) + MIN_NUMBER
-    } while (numbersSent.includes(number))
+    } while (
+      drawnNumbers.includes(number) &&
+      number > MAX_NUMBER &&
+      number < MIN_NUMBER
+    )
   } else {
-    throw new Error('Número máximo de números sorteados atingido.')
+    throw new Error('Limite de números sorteados atingido.')
   }
-
-  numbersSent.push(number)
-  await redis.set(
-    process.env.RIFA_NAME + '-numbers-sent',
-    JSON.stringify(numbersSent)
-  )
 
   return number
 }
 
-function html({ name, number }: any) {
+export async function createCandidate(candidate: CandidateType) {
+  try {
+    return await prisma.candidato.create({
+      data: {
+        cidade: candidate.cidade,
+        email: candidate.email,
+        cpf: candidate.cpf,
+        estado: candidate.estado,
+        nome: candidate.nome,
+        numeroSorteado: String(candidate.numeroSorteado),
+        orgaoEmissor: candidate.orgaoEmissor,
+        notaFiscal: candidate.notaFiscal,
+        origem: candidate.origem,
+        dataCompra: candidate.dataCompra,
+        fotoUrl: candidate.fotoUrl
+      }
+    })
+  } catch (error) {
+    throw error
+  }
+}
+
+const processImage = async (
+  formData: FormData
+): Promise<string | undefined> => {
+  const imageFormData = formData.get('image') as any
+
+  if (!imageFormData || ['null', '[]', 'undefined'].includes(imageFormData))
+    return undefined
+
+  const file = formData.get('image') as File
+  const image = await (formData.get('image') as Blob).arrayBuffer()
+  const fileName = slugify(file.name)
+  const path = `${process.env.AWS_S3_URL}/candidatos/img/${fileName}`
+
+  // Realiza o upload para o AWS S3
+  await uploadFile(`candidatos/img/${fileName}`, image)
+
+  return path
+}
+
+function html(name: string, number: number) {
   return `<body>
     <h1>Olá, ${name}</h1>
     <p>Obrigado por preencher nosso formulário.</p>
@@ -83,6 +136,6 @@ function html({ name, number }: any) {
   </body>`
 }
 
-function text({ name }: any) {
+function text(name: string) {
   return `Olá, ${name}. Você recebeu um número sorteado por preencher nosso formulário.`
 }

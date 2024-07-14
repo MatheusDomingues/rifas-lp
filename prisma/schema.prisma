@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Candidato {
+  id             String    @id @default(cuid())
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  nome           String
+  email          String
+  cpf            String?
+  rg             String?
+  orgaoEmissor   String?   @map("orgao_emissor")
+  estado         String
+  cidade         String
+  notaFiscal     String    @map("nota_fiscal")
+  origem         String
+  dataCompra     DateTime? @map("data_compra")
+  numeroSorteado String    @map("numero_sorteado")
+  fotoUrl        String    @map("foto_url")
+
+  @@map("candidatos")
+}

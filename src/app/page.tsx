@@ -19,7 +19,7 @@ export default function Page() {
               <img
                 alt='Compre e concorra'
                 src='/images/banner.png'
-                className='w-fit h-fit max-h-full'
+                className='w-full max-w-full max-h-full object-contain'
               />
             </div>
 
@@ -27,7 +27,7 @@ export default function Page() {
               <img
                 alt='Compre e concorra'
                 src='/images/steps.png'
-                className='w-fit h-fit max-w-full'
+                className='w-full max-w-full max-h-full object-contain'
               />
             </div>
 

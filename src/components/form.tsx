@@ -1,6 +1,7 @@
 'use client'
 import { useSearchParams } from 'next/navigation'
-import { ChangeEvent, useState } from 'react'
+import { ChangeEvent, FormEvent, useState } from 'react'
+import toast from 'react-hot-toast'
 
 import { DatePicker } from '@/components/date-picker'
 import { Button } from '@/components/ui/button'
@@ -15,45 +16,89 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { sendDrawnNumber } from '@/lib/actions'
+import { CandidateType } from '@/types/candidate.type'
+
+import { LoadingButton } from './loading-button'
 
 export function Form() {
   const params = useSearchParams()
-  const origin = params.get('utm_source')
+  const [isLoading, setLoading] = useState(false)
   const [values, setValues] = useState({
-    name: '',
+    nome: '',
     email: '',
     cpf: '',
     rg: '',
-    rge: '',
-    state: '',
-    city: '',
-    nf: '',
-    origin: origin || ''
+    orgaoEmissor: '',
+    estado: '',
+    cidade: '',
+    notaFiscal: '',
+    origem: params.get('utm_source') || ''
   })
   const [terms, setTerms] = useState({
     policy: false,
     privacy: false
   })
   const [purchaseDate, setPurchaseDate] = useState<Date | undefined>(undefined)
-  const [file, setFile] = useState<File | undefined>(undefined)
+  const [image, setImage] = useState<File | undefined>(undefined)
 
   const onChangeValues = (e: ChangeEvent<HTMLInputElement>) => {
     setValues({ ...values, [e.target.name]: e.target.value })
   }
 
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append(
+        'content',
+        JSON.stringify({
+          cidade: values.cidade,
+          email: values.email,
+          estado: values.estado,
+          nome: values.nome,
+          notaFiscal: values.notaFiscal,
+          origem: values.origem,
+          rg: values?.rg,
+          cpf: values?.cpf,
+          orgaoEmissor: values?.orgaoEmissor,
+          dataCompra: purchaseDate
+        } satisfies Omit<CandidateType, 'fotoUrl' | 'numeroSorteado'>)
+      )
+      formData.append('image', image || '')
+
+      const response = await sendDrawnNumber(formData)
+
+      toast.success(response.message)
+    } catch (err: any) {
+      console.error(err)
+      toast.error(
+        err?.message ||
+          'Não foi possível fazer o cadastro. Caso o erro persista, por favor contacte os administradores'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <form id='form' className='flex flex-col gap-6 max-w-6xl w-full p-4'>
+    <form
+      id='form'
+      className='flex flex-col gap-6 max-w-6xl w-full p-4'
+      onSubmit={() => ({})}
+    >
       <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full'>
         <div className='flex flex-col gap-2 w-full'>
-          <Label htmlFor='name'>
+          <Label htmlFor='nome'>
             Nome <span className='text-red-500'>*</span>
           </Label>
           <Input
             required
             className='w-full'
-            id='name'
-            name='name'
-            value={values?.name}
+            id='nome'
+            name='nome'
+            value={values?.nome}
             onChange={onChangeValues}
           />
         </div>
@@ -96,40 +141,40 @@ export function Form() {
         </div>
 
         <div className='flex flex-col gap-2 w-full'>
-          <Label htmlFor='rge'>Órgão Emissor</Label>
+          <Label htmlFor='orgaoEmissor'>Órgão Emissor</Label>
           <Input
             className='w-full'
-            id='rge'
-            name='rge'
-            value={values?.rge}
+            id='orgaoEmissor'
+            name='orgaoEmissor'
+            value={values?.orgaoEmissor}
             onChange={onChangeValues}
           />
         </div>
 
         <div className='flex flex-col gap-2 w-full'>
-          <Label htmlFor='state'>
+          <Label htmlFor='estado'>
             Estado <span className='text-red-500'>*</span>
           </Label>
           <Input
             required
             className='w-full'
-            id='state'
-            name='state'
-            value={values?.state}
+            id='estado'
+            name='estado'
+            value={values?.estado}
             onChange={onChangeValues}
           />
         </div>
 
         <div className='flex flex-col gap-2 w-full'>
-          <Label htmlFor='city'>
+          <Label htmlFor='cidade'>
             Cidade <span className='text-red-500'>*</span>
           </Label>
           <Input
             required
             className='w-full'
-            id='city'
-            name='city'
-            value={values?.city}
+            id='cidade'
+            name='cidade'
+            value={values?.cidade}
             onChange={onChangeValues}
           />
         </div>
@@ -146,21 +191,21 @@ export function Form() {
         </div>
 
         <div className='flex flex-col gap-2 w-full'>
-          <Label htmlFor='nf'>
+          <Label htmlFor='notaFiscal'>
             Nota Fiscal <span className='text-red-500'>*</span>
           </Label>
           <Input
             required
             className='w-full'
-            id='nf'
-            name='nf'
-            value={values?.nf}
+            id='notaFiscal'
+            name='notaFiscal'
+            value={values?.notaFiscal}
             onChange={onChangeValues}
           />
         </div>
 
         <div className='flex flex-col gap-2 w-full'>
-          <Label htmlFor='file' className='flex flex-col gap-2 w-full'>
+          <Label htmlFor='image' className='flex flex-col gap-2 w-full'>
             <p>
               Foto da NF <span className='text-red-500'>*</span>
             </p>
@@ -171,8 +216,8 @@ export function Form() {
               className='h-12 text-black font-normal'
             >
               <span className='cursor-pointer'>
-                {!!file
-                  ? `Arquivo: ${file?.name}`
+                {!!image
+                  ? `Arquivo: ${image?.name}`
                   : 'Clique aqui para selecionar um arquivo'}
               </span>
             </Button>
@@ -180,7 +225,7 @@ export function Form() {
               required
               accept='image/*'
               type='file'
-              id='file'
+              id='image'
               className='hidden'
               onChange={e => {
                 if (
@@ -189,7 +234,7 @@ export function Form() {
                     e.target.files![0]?.name?.split('.')?.at(-1)!
                   )
                 ) {
-                  setFile(e.target.files![0])
+                  setImage(e.target.files![0])
                 }
               }}
             />
@@ -197,14 +242,14 @@ export function Form() {
         </div>
 
         <div className='flex flex-col gap-2 w-full'>
-          <Label htmlFor='origin'>
+          <Label>
             Origem <span className='text-red-500'>*</span>
           </Label>
           <Select
             required
-            value={values?.origin || ''}
+            value={values?.origem || ''}
             onValueChange={value =>
-              setValues(prevState => ({ ...prevState, origin: value }))
+              setValues(prevState => ({ ...prevState, origem: value }))
             }
           >
             <SelectTrigger className='h-12'>
@@ -269,12 +314,14 @@ export function Form() {
         </div>
       </div>
 
-      <Button
+      <LoadingButton
+        type='submit'
         className='w-fit h-12 px-6 rounded-2xl text-2xl drop-shadow-md font-semibold m-auto'
-        disabled={!terms.policy || !terms.privacy || !file}
+        disabled={!terms.policy || !terms.privacy || !image}
+        isLoading={isLoading}
       >
         Enviar
-      </Button>
+      </LoadingButton>
     </form>
   )
 }

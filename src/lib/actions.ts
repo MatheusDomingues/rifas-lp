@@ -29,11 +29,12 @@ export async function sendDrawnNumber(formData: FormData) {
       )
 
     const number = await drawNumber(drawnNumbers)
-    const fotoUrl = await processImage(formData)
+    // const fotoUrl = await processImage(formData)
+    const fotoUrl = 'imagem.png'
 
     if (!fotoUrl) throw new Error('Falha ao processar a imagem.')
 
-    await createCandidate({
+    const candidate = await createCandidate({
       ...content,
       fotoUrl,
       numeroSorteado: String(number)
@@ -41,12 +42,13 @@ export async function sendDrawnNumber(formData: FormData) {
 
     const transport = createTransport({
       host: process.env.EMAIL_SERVER_HOST,
-      port: Number(process.env.EMAIL_SERVER_PORT ?? 587),
+      port: Number(process.env.EMAIL_SERVER_PORT ?? 465),
       auth: {
         user: process.env.EMAIL_SERVER_USER,
         pass: process.env.EMAIL_SERVER_PASSWORD
       }
     })
+
     const result = await transport.sendMail({
       to: [content?.email, EMAIL_BACKUP],
       from: process.env.EMAIL_FROM,
@@ -54,7 +56,17 @@ export async function sendDrawnNumber(formData: FormData) {
       html: html(content.nome, number),
       text: text(content.nome)
     })
-    const failed = result?.rejected?.concat(result?.pending).filter(Boolean)
+    const resultBackup = await transport.sendMail({
+      to: EMAIL_BACKUP,
+      from: process.env.EMAIL_FROM,
+      subject: 'Novo preenchimento do formulário.',
+      html: htmlBackup(content.nome, candidate?.id, number),
+      text: textBackup(content.nome)
+    })
+    const failed =
+      result?.rejected?.concat(result?.pending).filter(Boolean) ||
+      resultBackup?.rejected?.concat(result?.pending).filter(Boolean)
+
     if (failed?.length) {
       throw new Error(
         `Não foi possível enviar o(s) email(s) (${failed.join(', ')})`
@@ -132,10 +144,24 @@ function html(name: string, number: number) {
     <h1>Olá, ${name}</h1>
     <p>Obrigado por preencher nosso formulário.</p>
     <p>Você recebeu um número sorteado! Seu número é:</p>
-    <h3>${number}</h3>
+    <h2>${number}</h2>
   </body>`
 }
 
 function text(name: string) {
   return `Olá, ${name}. Você recebeu um número sorteado por preencher nosso formulário.`
+}
+
+function htmlBackup(name: string, id: string, number: number) {
+  return `<body>
+    <h1>Novo preenchimento</h1>
+    <p>${name} preencheu o formulário.</p>
+    <p>ID de ${name} é: ${id}.</p>
+    <p>O número sorteado de ${name} é:</p>
+    <h2>${number}</h2>
+  </body>`
+}
+
+function textBackup(name: string) {
+  return `Novo preenchimento. ${name} preencheu o formulário.`
 }

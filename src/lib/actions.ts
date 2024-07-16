@@ -34,44 +34,44 @@ export async function sendDrawnNumber(formData: FormData) {
 
     if (!fotoUrl) throw new Error('Falha ao processar a imagem.')
 
-    await createCandidate({
+    const candidate = await createCandidate({
       ...content,
       fotoUrl,
       numeroSorteado: String(number)
     })
 
-    // const transport = createTransport({
-    //   host: process.env.EMAIL_SERVER_HOST,
-    //   port: Number(process.env.EMAIL_SERVER_PORT ?? 465),
-    //   auth: {
-    //     user: process.env.EMAIL_SERVER_USER,
-    //     pass: process.env.EMAIL_SERVER_PASSWORD
-    //   }
-    // })
+    const transport = createTransport({
+      host: process.env.EMAIL_SERVER_HOST,
+      port: Number(process.env.EMAIL_SERVER_PORT ?? 465),
+      auth: {
+        user: process.env.EMAIL_SERVER_USER,
+        pass: process.env.EMAIL_SERVER_PASSWORD
+      }
+    })
 
-    // const result = await transport.sendMail({
-    //   to: [content?.email, EMAIL_BACKUP],
-    //   from: process.env.EMAIL_FROM,
-    //   subject: `Olá, ${content.nome}. Você recebeu um número sorteado`,
-    //   html: html(content.nome, number),
-    //   text: text(content.nome)
-    // })
-    // const resultBackup = await transport.sendMail({
-    //   to: EMAIL_BACKUP,
-    //   from: process.env.EMAIL_FROM,
-    //   subject: 'Novo preenchimento do formulário.',
-    //   html: htmlBackup(content.nome, candidate?.id, number),
-    //   text: textBackup(content.nome)
-    // })
-    // const failed =
-    //   result?.rejected?.concat(result?.pending).filter(Boolean) ||
-    //   resultBackup?.rejected?.concat(result?.pending).filter(Boolean)
+    const result = await transport.sendMail({
+      to: [content?.email, EMAIL_BACKUP],
+      from: process.env.EMAIL_FROM,
+      subject: `Olá, ${content.nome}. Você recebeu um número sorteado`,
+      html: html(content.nome, number),
+      text: text(content.nome)
+    })
+    const resultBackup = await transport.sendMail({
+      to: EMAIL_BACKUP,
+      from: process.env.EMAIL_FROM,
+      subject: 'Novo preenchimento do formulário.',
+      html: htmlBackup(content.nome, candidate?.id, number),
+      text: textBackup(content.nome)
+    })
+    const failed =
+      result?.rejected?.concat(result?.pending).filter(Boolean) ||
+      resultBackup?.rejected?.concat(result?.pending).filter(Boolean)
 
-    // if (failed?.length) {
-    //   throw new Error(
-    //     `Não foi possível enviar o(s) email(s) (${failed.join(', ')})`
-    //   )
-    // }
+    if (failed?.length) {
+      throw new Error(
+        `Não foi possível enviar o(s) email(s) (${failed.join(', ')})`
+      )
+    }
 
     return { message: 'Número sorteado enviado com sucesso!' }
   } catch (error) {

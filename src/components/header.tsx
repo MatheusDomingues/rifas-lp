@@ -1,6 +1,6 @@
 export function Header() {
   return (
-    <div className='flex w-full fixed bg-[#0d1346] text-white px-3 py-5 z-10'>
+    <div className='flex w-full fixed bg-[#0d1346] text-white px-3 py-5 z-20'>
       <ul className='flex w-full max-w-2xl gap-2 mx-auto justify-between items-center'>
         <li>
           <a

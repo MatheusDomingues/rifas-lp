@@ -12,7 +12,7 @@ const fontSans = FontSans({
 })
 
 export const metadata: Metadata = {
-  title: 'Zoop | Compra e Concorra',
+  title: 'Zoop Toys | Compra e Concorra',
   description:
     'Landing Page da Zoop para concorrer a prêmios sobre compras realizadas de seus produtos'
 }

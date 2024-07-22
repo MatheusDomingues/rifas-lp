@@ -1,11 +1,11 @@
 'use server'
 
+import fs from 'fs'
 import { createTransport } from 'nodemailer'
 
 import { CandidateType } from '@/types/candidate.type'
 
 import prisma from './prisma'
-import { uploadFile } from './s3-client'
 import { slugify } from './utils'
 
 const MIN_NUMBER = Number(process.env.MIN_NUMBER)
@@ -29,8 +29,7 @@ export async function sendDrawnNumber(formData: FormData) {
       )
 
     const number = await drawNumber(drawnNumbers)
-    // const fotoUrl = await processImage(formData)
-    const fotoUrl = 'imagem.png'
+    const fotoUrl = await processImage(formData)
 
     if (!fotoUrl) throw new Error('Falha ao processar a imagem.')
 
@@ -124,20 +123,39 @@ export async function createCandidate(candidate: CandidateType) {
 const processImage = async (
   formData: FormData
 ): Promise<string | undefined> => {
-  const imageFormData = formData.get('image') as any
+  try {
+    let error = false
+    const imageFormData = formData.get('image') as any
 
-  if (!imageFormData || ['null', '[]', 'undefined'].includes(imageFormData))
-    return undefined
+    if (!imageFormData || ['null', '[]', 'undefined'].includes(imageFormData))
+      return undefined
 
-  const file = formData.get('image') as File
-  const image = await (formData.get('image') as Blob).arrayBuffer()
-  const fileName = slugify(file.name)
-  const path = `${process.env.AWS_S3_URL}/candidatos/img/${fileName}`
+    const file = formData.get('image') as File
+    const image = new Uint8Array(await file.arrayBuffer())
+    const fileName = slugify(file.name)
+    const path = `${process.env.FILE_PATH}/${fileName}`
 
-  // Realiza o upload para o AWS S3
-  await uploadFile(`candidatos/img/${fileName}`, image)
+    fs.writeFile(
+      path,
+      image,
+      {
+        encoding: 'utf8'
+      },
+      err => {
+        if (err) {
+          error = true
+          console.error(err)
+          throw err
+        }
+      }
+    )
 
-  return path
+    if (error) throw new Error('Falha ao salvar a imagem')
+
+    return path
+  } catch (err: any) {
+    throw err
+  }
 }
 
 function html(name: string, number: number) {

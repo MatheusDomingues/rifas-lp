@@ -23,6 +23,7 @@ import { LoadingButton } from './loading-button'
 
 export function Form() {
   const params = useSearchParams()
+  const origin = params.get('utm_source') || ''
   const [isLoading, setLoading] = useState(false)
   const [values, setValues] = useState({
     nome: '',
@@ -33,7 +34,7 @@ export function Form() {
     estado: '',
     cidade: '',
     notaFiscal: '',
-    origem: params.get('utm_source') || ''
+    origem: origin
   })
   const [terms, setTerms] = useState({
     policy: false,
@@ -85,7 +86,7 @@ export function Form() {
   return (
     <form
       id='form'
-      className='flex flex-col gap-6 max-w-6xl w-full p-4'
+      className='flex flex-col gap-6 max-w-6xl w-full z-10 mt-8'
       onSubmit={onSubmit}
     >
       <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full'>
@@ -247,6 +248,7 @@ export function Form() {
           </Label>
           <Select
             required
+            disabled={!!origin}
             value={values?.origem || ''}
             onValueChange={value =>
               setValues(prevState => ({ ...prevState, origem: value }))
